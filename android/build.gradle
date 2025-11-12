@@ -120,7 +120,8 @@ dependencies {
   //noinspection GradleDynamicVersion
   implementation "com.facebook.react:react-native:+"
 
-  implementation("video.api:rtmpdroid:1.2.1-packed")
+  // rtmpdroid with 16KB page size support (bundled as JAR + native libs in jniLibs/)
+  implementation files('libs/rtmpdroid-16kb.jar')
   implementation("video.api:android-live-stream:1.4.3") {
     exclude group: 'video.api', module: 'rtmpdroid'
     // exclude the transitive dependency to use packed version to avoid conflict with libssl.so and libcrypto.so
