@@ -31,7 +31,6 @@ using namespace facebook::react;
 
 @implementation RNLiveStreamView {
     RNLiveStreamViewImpl * _view;
-    NSMutableArray<NSDictionary *> * _pendingStartStreamingEvents;
 }
 
 // MARK: Initializers
@@ -42,8 +41,6 @@ using namespace facebook::react;
     if (self) {
         static const auto defaultProps = std::make_shared<const ApiVideoLiveStreamViewProps>();
         _props = defaultProps;
-        
-        _pendingStartStreamingEvents = [NSMutableArray array];
 
         _view = [[RNLiveStreamViewImpl alloc] init];
         
@@ -69,27 +66,18 @@ using namespace facebook::react;
         };
         
         _view.onStartStreaming = [self](NSDictionary *dictionary) {
-            NSLog(@"🎥 [RNLiveStreamView] onStartStreaming callback received, eventEmitter exists: %@", _eventEmitter ? @"YES" : @"NO");
             if (_eventEmitter) {
                 NSString *error = [dictionary valueForKey:@"error"];
                 std::string stdError;
                 if (error != nil) {
                     stdError = std::string([error UTF8String]);
                 }
-                NSNumber *requestId = [dictionary valueForKey:@"requestId"];
-                NSNumber *result = [dictionary valueForKey:@"result"];
-                NSLog(@"🎥 [RNLiveStreamView] Emitting onStartStreaming event - requestId: %@, result: %@, error: %@", requestId, result, error ?: @"nil");
                 ApiVideoLiveStreamViewEventEmitter::OnStartStreaming data = {
-                    .requestId = [requestId intValue],
-                    .result = static_cast<bool>([result boolValue]),
+                    .requestId = [[dictionary valueForKey:@"requestId"] intValue],
+                    .result = static_cast<bool>([[dictionary valueForKey:@"result"] boolValue]),
                     .error = stdError,
                 };
                 std::static_pointer_cast<const ApiVideoLiveStreamViewEventEmitter>(_eventEmitter)->onStartStreaming(data);
-                NSLog(@"✅ [RNLiveStreamView] onStartStreaming event emitted successfully");
-            } else {
-                NSLog(@"❌ [RNLiveStreamView] ERROR: _eventEmitter is nil! Queueing event for later emission.");
-                // Queue the event to emit when emitter is ready
-                [_pendingStartStreamingEvents addObject:dictionary];
             }
         };
         
@@ -148,27 +136,6 @@ using namespace facebook::react;
     }
     
     [super updateProps:props oldProps:oldProps];
-    
-    // When props update, event emitter should be ready - emit any queued events
-    if (_eventEmitter && _pendingStartStreamingEvents.count > 0) {
-        NSLog(@"✅ [RNLiveStreamView] Event emitter ready, emitting %lu queued events", (unsigned long)_pendingStartStreamingEvents.count);
-        for (NSDictionary *dictionary in _pendingStartStreamingEvents) {
-            NSString *error = [dictionary valueForKey:@"error"];
-            std::string stdError;
-            if (error != nil) {
-                stdError = std::string([error UTF8String]);
-            }
-            NSNumber *requestId = [dictionary valueForKey:@"requestId"];
-            NSNumber *result = [dictionary valueForKey:@"result"];
-            ApiVideoLiveStreamViewEventEmitter::OnStartStreaming data = {
-                .requestId = [requestId intValue],
-                .result = static_cast<bool>([result boolValue]),
-                .error = stdError,
-            };
-            std::static_pointer_cast<const ApiVideoLiveStreamViewEventEmitter>(_eventEmitter)->onStartStreaming(data);
-        }
-        [_pendingStartStreamingEvents removeAllObjects];
-    }
 }
 
 - (void)handleCommand:(nonnull const NSString *)commandName args:(nonnull const NSArray *)args {
